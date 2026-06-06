@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  ACOMPANHAMENTO
+  LEITURA
+}
+
+enum RiskLevel {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AlertSeverity {
+  CRITICAL
+  ATTENTION
+  INFO
+}
+
+enum CaseStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model InstitutionUnit {
+  id        String     @id @default(cuid())
+  name      String
+  code      String     @unique
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  courses   Course[]
+  riskRules RiskRule[]
+
+  @@index([active])
+}
+
+model Course {
+  id          String          @id @default(cuid())
+  unitId      String
+  name        String
+  code        String
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  unit        InstitutionUnit @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  classGroups ClassGroup[]
+  students    Student[]
+
+  @@unique([unitId, code])
+  @@index([unitId])
+}
+
+model ClassGroup {
+  id        String    @id @default(cuid())
+  courseId  String
+  name      String
+  period    String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  students  Student[]
+
+  @@unique([courseId, name, period])
+  @@index([courseId, period])
+}
+
+model Student {
+  id              String           @id @default(cuid())
+  enrollmentCode  String           @unique
+  name            String
+  email           String
+  status          String           @default("ACTIVE")
+  courseId        String
+  classGroupId    String
+  active          Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  course          Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  classGroup      ClassGroup       @relation(fields: [classGroupId], references: [id], onDelete: Restrict)
+  academicRecords AcademicRecord[]
+  riskAssessments RiskAssessment[]
+  alerts          Alert[]
+  followUpCases   FollowUpCase[]
+
+  @@index([courseId, classGroupId, active])
+}
+
+model AcademicRecord {
+  id                 String           @id @default(cuid())
+  studentId          String
+  period             String
+  attendancePercent  Float
+  averageGrade       Float
+  pendingAssignments Int
+  totalAssignments   Int
+  source             String
+  importedAt         DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  student            Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  riskAssessments    RiskAssessment[]
+
+  @@unique([studentId, period])
+  @@index([studentId, period])
+}
+
+model RiskRule {
+  id                                     String           @id @default(cuid())
+  unitId                                 String
+  period                                 String
+  name                                   String
+  highRiskAttendanceThreshold            Float
+  mediumRiskAttendanceThreshold          Float
+  highRiskGradeThreshold                 Float
+  mediumRiskGradeThreshold               Float
+  highRiskPendingAssignmentsThreshold    Int
+  mediumRiskPendingAssignmentsThreshold  Int
+  attendanceWeight                       Float
+  gradeWeight                            Float
+  assignmentsWeight                      Float
+  active                                 Boolean          @default(true)
+  createdById                            String?
+  createdAt                              DateTime         @default(now())
+  updatedAt                              DateTime         @updatedAt
+  unit                                   InstitutionUnit  @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdBy                              User?            @relation("RiskRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  riskAssessments                        RiskAssessment[]
+
+  @@index([unitId, period, active])
+}
+
+model RiskAssessment {
+  id               String         @id @default(cuid())
+  studentId        String
+  academicRecordId String
+  riskRuleId       String
+  riskLevel        RiskLevel
+  score            Float
+  reasons          Json
+  assessedAt       DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+  student          Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicRecord   AcademicRecord @relation(fields: [academicRecordId], references: [id], onDelete: Cascade)
+  riskRule         RiskRule       @relation(fields: [riskRuleId], references: [id], onDelete: Restrict)
+  alerts           Alert[]
+
+  @@index([studentId, riskLevel, assessedAt])
+}
+
+model FollowUpCase {
+  id            String         @id @default(cuid())
+  studentId     String
+  period        String
+  status        CaseStatus     @default(PENDING)
+  openedAt      DateTime       @default(now())
+  closedAt      DateTime?
+  assignedToId  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  student       Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignedTo    User?          @relation("CaseAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  alerts        Alert[]
+  interventions Intervention[]
+
+  @@index([studentId, status, openedAt])
+  @@index([studentId, period, status])
+}
+
+model Alert {
+  id               String         @id @default(cuid())
+  studentId        String
+  riskAssessmentId String
+  followUpCaseId   String?
+  severity         AlertSeverity
+  title            String
+  description      String
+  status           String         @default("OPEN")
+  generatedAt      DateTime       @default(now())
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  student          Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  followUpCase     FollowUpCase?  @relation(fields: [followUpCaseId], references: [id], onDelete: SetNull)
+
+  @@index([studentId, severity, generatedAt])
+  @@index([followUpCaseId])
+}
+
+model CauseCategory {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  description   String?
+  active        Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  interventions Intervention[]
+}
+
+model Intervention {
+  id              String        @id @default(cuid())
+  caseId          String
+  causeCategoryId String
+  actionTaken     String
+  notes           String?
+  createdById     String
+  createdAt       DateTime      @default(now())
+  followUpCase    FollowUpCase  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  causeCategory   CauseCategory @relation(fields: [causeCategoryId], references: [id], onDelete: Restrict)
+  createdBy       User          @relation("InterventionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([caseId, createdAt])
+}
+
+model User {
+  id               String          @id @default(cuid())
+  name             String
+  email            String          @unique
+  passwordHash     String
+  role             Role
+  active           Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  createdRiskRules RiskRule[]      @relation("RiskRuleCreatedBy")
+  assignedCases    FollowUpCase[]  @relation("CaseAssignedTo")
+  interventions    Intervention[]  @relation("InterventionCreatedBy")
+  auditLogs        AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId, createdAt])
+}

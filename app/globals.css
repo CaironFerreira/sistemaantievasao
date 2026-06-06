@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 43 33% 97%;
+  --foreground: 213 31% 14%;
+  --card: 0 0% 100%;
+  --card-foreground: 213 31% 14%;
+  --primary: 195 79% 28%;
+  --primary-foreground: 45 100% 98%;
+  --secondary: 35 52% 92%;
+  --secondary-foreground: 213 31% 14%;
+  --muted: 45 35% 93%;
+  --muted-foreground: 215 14% 38%;
+  --accent: 25 74% 86%;
+  --accent-foreground: 213 31% 14%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 35 28% 84%;
+  --input: 35 28% 84%;
+  --ring: 195 79% 28%;
+  --radius: 1rem;
+  --font-sans: "Segoe UI Variable Display";
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  background-image:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.24), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(14, 116, 144, 0.12), transparent 25%);
+}
+
+a {
+  @apply text-primary transition-colors hover:text-primary/80;
+}
