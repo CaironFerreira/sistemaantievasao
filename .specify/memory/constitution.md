@@ -1,50 +1,139 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Constitution — Sistema de Gestão de Permanência Estudantil
 
-## Core Principles
+## 1. Produto
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+O sistema será uma aplicação web para monitorar indicadores acadêmicos, classificar risco de evasão, gerar alertas priorizados, registrar acompanhamentos institucionais e apoiar decisões por meio de relatórios gerenciais.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+O MVP deve entregar uma solução funcional, simples e orientada à ação, sem modelos avançados de IA e sem integrações complexas com múltiplos sistemas.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+## 2. Stack obrigatória da V1
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### 2.1 Frontend e Backend
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+- Framework principal: **Next.js com App Router**.
+- Linguagem: **TypeScript**.
+- Renderização: combinação de Server Components, Client Components e Server Actions quando aplicável.
+- API interna: Route Handlers do Next.js para endpoints de importação, relatórios e operações assíncronas simples.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### 2.2 Interface
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- UI: **shadcn/ui**.
+- Estilização: **Tailwind CSS**.
+- Formulários: **React Hook Form + Zod**.
+- Tabelas: TanStack Table quando houver necessidade de filtros, ordenação e paginação.
+- Gráficos: Recharts.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### 2.3 Banco de Dados
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Banco: **PostgreSQL**.
+- ORM: **Prisma**.
+- Migrações: Prisma Migrate.
+- Ambiente local: Docker Compose com PostgreSQL.
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+### 2.4 Autenticação e Autorização
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- Autenticação: **Auth.js** ou mecanismo equivalente compatível com Next.js.
+- Autorização: RBAC com perfis mínimos:
+  - `ADMIN`: gestão de usuários, cursos, turmas, regras e parâmetros globais.
+  - `GESTOR`: visualização gerencial, relatórios e acompanhamento amplo.
+  - `ACOMPANHAMENTO`: atuação sobre alertas, registro de intervenções e evolução dos casos.
+  - `LEITURA`: acesso somente leitura a relatórios e indicadores permitidos.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+### 2.5 Importação de Dados
+
+- MVP deve suportar importação via CSV e cadastro manual básico.
+- Formatos aceitos inicialmente: `.csv`.
+- Validação de colunas obrigatórias antes de persistir dados.
+- Registros inválidos devem ser rejeitados com relatório de erros.
+
+### 2.6 Segurança e LGPD
+
+- Dados pessoais e acadêmicos dos alunos são sensíveis.
+- Toda rota administrativa deve exigir autenticação.
+- Acesso aos dados deve respeitar perfil do usuário.
+- Logs não devem expor dados pessoais desnecessários.
+- O sistema deve registrar auditoria mínima para ações relevantes:
+  - importação de dados;
+  - alteração de regra de risco;
+  - criação/edição de acompanhamento;
+  - alteração de status de caso.
+
+### 2.7 Regras de Risco
+
+- O MVP usará regras configuráveis, não IA avançada.
+- A classificação mínima deve contemplar:
+  - alto risco;
+  - médio risco;
+  - baixo risco.
+- As regras devem poder considerar:
+  - frequência;
+  - notas;
+  - entregas/atividades;
+  - combinação ponderada desses indicadores.
+
+### 2.8 Qualidade de Código
+
+- Código modular por domínio funcional.
+- Separação mínima entre:
+  - camada de apresentação;
+  - validações;
+  - serviços de domínio;
+  - acesso ao banco;
+  - cálculo de risco;
+  - geração de relatórios.
+- Toda regra de risco deve ter teste unitário.
+- Todo fluxo crítico deve ter teste de integração ou e2e mínimo.
+
+### 2.9 Testes
+
+- Testes unitários: Vitest.
+- Testes de componentes: React Testing Library.
+- Testes e2e: Playwright.
+- Cobertura obrigatória para:
+  - cálculo de risco;
+  - geração de alertas;
+  - transição de status;
+  - validação de importação CSV;
+  - permissões por perfil.
+
+### 2.10 Performance
+
+- Consultas de listagem devem usar paginação.
+- Relatórios devem usar filtros obrigatórios quando o volume for alto.
+- Índices devem ser criados para campos de consulta frequente:
+  - aluno;
+  - turma;
+  - curso;
+  - período;
+  - nível de risco;
+  - status do caso.
+
+### 2.11 Escalabilidade
+
+- A modelagem deve permitir múltiplas unidades institucionais no futuro.
+- O MVP pode iniciar com uma unidade piloto, mas o schema não deve impedir expansão.
+
+### 2.12 Restrições do MVP
+
+O MVP não deve incluir:
+
+- modelos avançados de IA;
+- predição estatística sofisticada;
+- integração obrigatória com sistemas acadêmicos externos;
+- LMS;
+- base institucional externa automatizada;
+- aplicativo mobile nativo.
+
+### 2.13 Critérios de Aceitação Arquitetural
+
+A implementação só é considerada compatível com esta Constituição se:
+
+1. houver autenticação e controle de acesso por perfil;
+2. houver persistência relacional em PostgreSQL;
+3. houver classificação de todos os alunos monitorados;
+4. houver regras de risco configuráveis;
+5. houver alertas priorizados;
+6. houver registro de acompanhamento e status do caso;
+7. houver relatórios por aluno, turma, curso e período;
+8. houver tratamento mínimo de LGPD;
+9. houver testes para regras de risco e fluxos críticos.
