@@ -33,6 +33,33 @@ type RiskComputation = {
   severity: AlertSeverity | null;
 };
 
+const DEFAULT_RISK_RULE_VALUES = {
+  highRiskAttendanceThreshold: 65,
+  mediumRiskAttendanceThreshold: 80,
+  highRiskGradeThreshold: 4,
+  mediumRiskGradeThreshold: 6,
+  highRiskPendingAssignmentsThreshold: 4,
+  mediumRiskPendingAssignmentsThreshold: 2,
+  attendanceWeight: 0.4,
+  gradeWeight: 0.35,
+  assignmentsWeight: 0.25,
+} satisfies Pick<
+  RiskRule,
+  | "highRiskAttendanceThreshold"
+  | "mediumRiskAttendanceThreshold"
+  | "highRiskGradeThreshold"
+  | "mediumRiskGradeThreshold"
+  | "highRiskPendingAssignmentsThreshold"
+  | "mediumRiskPendingAssignmentsThreshold"
+  | "attendanceWeight"
+  | "gradeWeight"
+  | "assignmentsWeight"
+>;
+
+function getDefaultRiskRuleName(period: string) {
+  return `Regra padrao ${period}`;
+}
+
 export function calculateRisk(
   record: Pick<
     RecordSnapshot,
@@ -214,6 +241,89 @@ export async function listRiskRules(params: { page?: number; pageSize?: number }
   return createPageResult(items, total, page, pageSize);
 }
 
+export async function getActiveRiskRuleForUnitPeriod(unitId: string, period: string) {
+  return prisma.riskRule.findFirst({
+    where: {
+      unitId,
+      period,
+      active: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+}
+
+export async function ensureActiveRiskRuleForUnitPeriod(
+  unitId: string,
+  period: string,
+  actorId?: string,
+) {
+  const activeRule = await getActiveRiskRuleForUnitPeriod(unitId, period);
+
+  if (activeRule) {
+    return activeRule;
+  }
+
+  const defaultRuleName = getDefaultRiskRuleName(period);
+  const existingDefaultRule = await prisma.riskRule.findFirst({
+    where: {
+      unitId,
+      period,
+      name: defaultRuleName,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+
+  if (existingDefaultRule) {
+    const reactivatedRule = await prisma.riskRule.update({
+      where: { id: existingDefaultRule.id },
+      data: { active: true },
+    });
+
+    await createAuditLog({
+      userId: actorId,
+      action: "RISK_RULE_AUTO_ACTIVATED",
+      entity: "RiskRule",
+      entityId: reactivatedRule.id,
+      metadata: {
+        unitId: reactivatedRule.unitId,
+        period: reactivatedRule.period,
+        active: reactivatedRule.active,
+      },
+    });
+
+    return reactivatedRule;
+  }
+
+  const createdRule = await prisma.riskRule.create({
+    data: {
+      unitId,
+      period,
+      name: defaultRuleName,
+      active: true,
+      createdById: actorId,
+      ...DEFAULT_RISK_RULE_VALUES,
+    },
+  });
+
+  await createAuditLog({
+    userId: actorId,
+    action: "RISK_RULE_AUTO_CREATED",
+    entity: "RiskRule",
+    entityId: createdRule.id,
+    metadata: {
+      unitId: createdRule.unitId,
+      period: createdRule.period,
+      active: createdRule.active,
+    },
+  });
+
+  return createdRule;
+}
+
 export async function saveRiskRule(
   input: RiskRuleInput & { id?: string; createdById?: string },
   actorId?: string,
@@ -276,20 +386,11 @@ export async function assessAcademicRecord(recordId: string, actorId?: string) {
     throw new Error("Registro academico nao encontrado.");
   }
 
-  const rule = await prisma.riskRule.findFirst({
-    where: {
-      unitId: record.student.course.unitId,
-      period: record.period,
-      active: true,
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
-
-  if (!rule) {
-    return null;
-  }
+  const rule = await ensureActiveRiskRuleForUnitPeriod(
+    record.student.course.unitId,
+    record.period,
+    actorId,
+  );
 
   const computed = calculateRisk(record, rule);
 

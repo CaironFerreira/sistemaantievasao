@@ -147,23 +147,27 @@ export async function saveAcademicRecordAction(formData: FormData) {
   const session = await requireSession();
   requireCapability(session.user.role, "students:manage");
 
-  await saveAcademicRecord(
-    {
-      id: asOptionalString(formData.get("id")),
-      studentId: asString(formData.get("studentId")),
-      period: asString(formData.get("period")),
-      attendancePercent: Number(asString(formData.get("attendancePercent"))),
-      averageGrade: Number(asString(formData.get("averageGrade"))),
-      pendingAssignments: Number(asString(formData.get("pendingAssignments"))),
-      totalAssignments: Number(asString(formData.get("totalAssignments"))),
-      source: (asString(formData.get("source")) || "MANUAL") as "MANUAL" | "CSV",
-    },
-    session.user.id,
-  );
-  revalidatePath("/alunos");
-  revalidatePath("/alertas");
-  revalidatePath("/acompanhamentos");
-  revalidatePath("/relatorios");
+  try {
+    await saveAcademicRecord(
+      {
+        id: asOptionalString(formData.get("id")),
+        studentId: asString(formData.get("studentId")),
+        period: asString(formData.get("period")),
+        attendancePercent: Number(asString(formData.get("attendancePercent"))),
+        averageGrade: Number(asString(formData.get("averageGrade"))),
+        pendingAssignments: Number(asString(formData.get("pendingAssignments"))),
+        totalAssignments: Number(asString(formData.get("totalAssignments"))),
+        source: (asString(formData.get("source")) || "MANUAL") as "MANUAL" | "CSV",
+      },
+      session.user.id,
+    );
+    revalidatePath("/alunos");
+    revalidatePath("/alertas");
+    revalidatePath("/acompanhamentos");
+    revalidatePath("/relatorios");
+  } catch (error) {
+    throw new Error(sanitizeErrorMessage(error));
+  }
 }
 
 export async function saveRiskRuleAction(formData: FormData) {

@@ -156,38 +156,43 @@ export default async function StudentsPage({ searchParams }: PageProps) {
                 </tr>
               </thead>
               <tbody>
-                {students.items.map((student) => (
-                  <tr key={student.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{student.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {student.enrollmentCode}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>{student.course.name}</TableCell>
-                    <TableCell>{student.classGroup.name}</TableCell>
-                    <TableCell>{student.academicRecords[0]?.period ?? "-"}</TableCell>
-                    <TableCell>
-                      {student.riskAssessments[0] ? (
-                        <Badge
-                          variant={
-                            student.riskAssessments[0].riskLevel === "HIGH"
-                              ? "danger"
-                              : student.riskAssessments[0].riskLevel === "MEDIUM"
-                                ? "warning"
-                                : "success"
-                          }
-                        >
-                          {student.riskAssessments[0].riskLevel}
-                        </Badge>
-                      ) : (
-                        "-"
-                      )}
-                    </TableCell>
-                  </tr>
-                ))}
+                {students.items.map((student) => {
+                  const latestRecord = student.academicRecords[0];
+                  const latestAssessment = latestRecord?.riskAssessments[0];
+
+                  return (
+                    <tr key={student.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{student.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {student.enrollmentCode}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{student.course.name}</TableCell>
+                      <TableCell>{student.classGroup.name}</TableCell>
+                      <TableCell>{latestRecord?.period ?? "-"}</TableCell>
+                      <TableCell>
+                        {latestAssessment ? (
+                          <Badge
+                            variant={
+                              latestAssessment.riskLevel === "HIGH"
+                                ? "danger"
+                                : latestAssessment.riskLevel === "MEDIUM"
+                                  ? "warning"
+                                  : "success"
+                            }
+                          >
+                            {latestAssessment.riskLevel}
+                          </Badge>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                    </tr>
+                  );
+                })}
               </tbody>
             </Table>
           </TableWrapper>

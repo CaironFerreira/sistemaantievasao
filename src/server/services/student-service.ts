@@ -33,12 +33,14 @@ export async function listStudents(params: {
         course: { include: { unit: true } },
         classGroup: true,
         academicRecords: {
-          orderBy: { updatedAt: "desc" },
+          orderBy: [{ period: "desc" }, { updatedAt: "desc" }],
           take: 1,
-        },
-        riskAssessments: {
-          orderBy: { assessedAt: "desc" },
-          take: 1,
+          include: {
+            riskAssessments: {
+              orderBy: { assessedAt: "desc" },
+              take: 1,
+            },
+          },
         },
       },
       orderBy: [{ active: "desc" }, { name: "asc" }],
